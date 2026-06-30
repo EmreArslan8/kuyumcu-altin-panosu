@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Kuyumcu — Canlı Altın & Döviz Panosu</title>
+<style>
+  :root{
+    --bg:#0a0e14;
+    --panel:#121822;
+    --line:#1f2937;
+    --gold:#f5c542;
+    --gold-soft:#d9a826;
+    --green:#22c55e;
+    --red:#ef4444;
+    --txt:#f4f6fb;
+    --muted:#8b95a7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Segoe UI",-apple-system,Roboto,Arial,sans-serif;
+    background:radial-gradient(1200px 600px at 50% -10%, #16202e 0%, var(--bg) 60%);
+    color:var(--txt);
+    min-height:100vh;
+    overflow:hidden;
+  }
+
+  /* ---- TV BOARD ---- */
+  .board{height:100vh;display:flex;flex-direction:column;padding:2.2vh 2.6vw}
+  .top{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--line);padding-bottom:1.6vh}
+  .brand{display:flex;align-items:center;gap:1.1vw}
+  .logo{
+    width:4.6vh;height:4.6vh;border-radius:50%;
+    background:linear-gradient(135deg,var(--gold),var(--gold-soft));
+    display:flex;align-items:center;justify-content:center;
+    font-weight:900;color:#1a1206;font-size:2.4vh;
+    box-shadow:0 0 28px rgba(245,197,66,.35);
+  }
+  .brand h1{font-size:3.1vh;letter-spacing:.5px}
+  .brand h1 span{color:var(--gold)}
+  .brand p{color:var(--muted);font-size:1.5vh;margin-top:.2vh}
+  .clock{text-align:right}
+  .clock .time{font-size:4.2vh;font-weight:700;font-variant-numeric:tabular-nums;color:var(--gold)}
+  .clock .date{color:var(--muted);font-size:1.7vh}
+  .status{display:inline-flex;align-items:center;gap:.5vw;font-size:1.4vh;color:var(--muted);margin-top:.4vh}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.6s infinite}
+  .dot.off{background:var(--red);box-shadow:0 0 10px var(--red);animation:none}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+  .head-row{
+    display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:1.2vw;
+    margin-top:1.8vh;padding:0 2.2vw;color:var(--muted);
+    font-size:1.7vh;font-weight:600;text-transform:uppercase;letter-spacing:1px;
+  }
+  .head-row .r{text-align:right}
+
+  .rows{flex:1;display:flex;flex-direction:column;justify-content:space-evenly;margin-top:.6vh}
+  .row{
+    display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:1.2vw;align-items:center;
+    background:linear-gradient(90deg,var(--panel),rgba(18,24,34,.4));
+    border:1px solid var(--line);border-left:5px solid var(--gold);
+    border-radius:14px;padding:1.9vh 2.2vw;
+  }
+  .row .name{display:flex;flex-direction:column}
+  .row .name b{font-size:3.4vh;font-weight:800}
+  .row .name small{color:var(--muted);font-size:1.5vh;margin-top:.3vh}
+  .price{font-size:4vh;font-weight:800;text-align:right;font-variant-numeric:tabular-nums}
+  .price.buy{color:#7dd3fc}
+  .price.sell{color:var(--gold)}
+  .price .cur{font-size:1.8vh;color:var(--muted);margin-left:.4vw}
+  .flash-up{animation:fu .9s ease}
+  .flash-down{animation:fd .9s ease}
+  @keyframes fu{0%{background:rgba(34,197,94,.25)}100%{background:transparent}}
+  @keyframes fd{0%{background:rgba(239,68,68,.25)}100%{background:transparent}}
+
+  .footer{display:flex;justify-content:space-between;align-items:center;margin-top:1.4vh;color:var(--muted);font-size:1.4vh}
+  .margin-badge{color:var(--gold);font-weight:600}
+
+  /* ---- ADMIN ---- */
+  .gear{position:fixed;top:14px;right:16px;z-index:50;background:rgba(20,28,40,.85);
+    border:1px solid var(--line);color:var(--muted);width:42px;height:42px;border-radius:10px;
+    cursor:pointer;font-size:20px}
+  .gear:hover{color:var(--gold)}
+  .overlay{position:fixed;inset:0;background:rgba(3,6,12,.72);backdrop-filter:blur(4px);
+    display:none;align-items:center;justify-content:center;z-index:100}
+  .overlay.open{display:flex}
+  .admin{background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    width:min(560px,92vw);max-height:90vh;overflow:auto;padding:26px 28px}
+  .admin h2{font-size:22px;margin-bottom:4px}
+  .admin h2 span{color:var(--gold)}
+  .admin .sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .field .row2{display:flex;gap:10px}
+  input[type=number],input[type=text]{
+    width:100%;background:#0b1018;border:1px solid var(--line);color:var(--txt);
+    border-radius:10px;padding:11px 12px;font-size:15px}
+  input:focus{outline:none;border-color:var(--gold)}
+  .hint{font-size:12px;color:var(--muted);margin-top:5px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .toggle{display:flex;align-items:center;gap:10px;font-size:14px;margin:6px 0}
+  .actions{display:flex;gap:10px;margin-top:22px}
+  .btn{flex:1;border:none;border-radius:10px;padding:13px;font-size:15px;font-weight:700;cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,var(--gold),var(--gold-soft));color:#1a1206}
+  .btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted)}
+  .divider{height:1px;background:var(--line);margin:18px 0}
+  .save-ok{color:var(--green);font-size:13px;text-align:center;margin-top:10px;height:16px}
+</style>
+</head>
+<body>
+
+<button class="gear" onclick="openAdmin()" title="Yönetim Paneli">⚙</button>
+
+<div class="board">
+  <div class="top">
+    <div class="brand">
+      <div class="logo">K</div>
+      <div>
+        <h1 id="bName">KUYUMCU <span>ALTIN</span></h1>
+        <p>Canlı Altın & Döviz Panosu</p>
+      </div>
+    </div>
+    <div class="clock">
+      <div class="time" id="clock">--:--:--</div>
+      <div class="date" id="date">--</div>
+      <div class="status"><span class="dot" id="statusDot"></span><span id="statusTxt">Bağlanıyor…</span></div>
+    </div>
+  </div>
+
+  <div class="head-row">
+    <div>BİRİM</div>
+    <div class="r">ALIŞ</div>
+    <div class="r">SATIŞ</div>
+  </div>
+
+  <div class="rows" id="rows"></div>
+
+  <div class="footer">
+    <div>Son güncelleme: <span id="lastUpdate">—</span></div>
+    <div class="margin-badge" id="marginInfo">Marj: —</div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div class="overlay" id="overlay">
+  <div class="admin">
+    <h2>Yönetim <span>Paneli</span></h2>
+    <div class="sub">Piyasa fiyatına uygulanacak kâr marjını (%) ve gösterim ayarlarını buradan düzenleyin.</div>
+
+    <div class="field">
+      <label>Mağaza Adı</label>
+      <input type="text" id="cfgName" placeholder="KUYUMCU ALTIN" />
+    </div>
+
+    <div class="grid2">
+      <div class="field">
+        <label>Alış marjı (%)</label>
+        <input type="number" id="cfgBuy" step="0.1" />
+        <div class="hint">Piyasa alış fiyatından düşülür (müşteriden alış)</div>
+      </div>
+      <div class="field">
+        <label>Satış marjı (%)</label>
+        <input type="number" id="cfgSell" step="0.1" />
+        <div class="hint">Piyasa satış fiyatına eklenir (müşteriye satış)</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="field">
+      <label>Yenileme sıklığı (saniye)</label>
+      <input type="number" id="cfgRefresh" min="5" step="1" />
+    </div>
+
+    <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">Gösterilecek kalemler</label>
+    <div id="itemToggles"></div>
+
+    <div class="actions">
+      <button class="btn ghost" onclick="closeAdmin()">İptal</button>
+      <button class="btn primary" onclick="saveCfg()">Kaydet</button>
+    </div>
+    <div class="save-ok" id="saveOk"></div>
+  </div>
+</div>
+
+<script>
+/* ====== Gösterilecek kalemler (truncgil v4 anahtarları) ====== */
+const ITEMS = [
+  {key:"GRA",  api:"GRA",              name:"GRAM ALTIN",  sub:"24 Ayar / Has gram"},
+  {key:"HAS",  api:"HAS",              name:"HAS ALTIN",   sub:"Saf altın gram"},
+  {key:"CEY",  api:"CEYREKALTIN",      name:"ÇEYREK ALTIN",sub:"Yeni çeyrek"},
+  {key:"YARI", api:"YARIMALTIN",       name:"YARIM ALTIN", sub:"Yeni yarım"},
+  {key:"TAM",  api:"TAMALTIN",         name:"TAM ALTIN",   sub:"Yeni tam"},
+  {key:"CUM",  api:"CUMHURIYETALTINI", name:"CUMHURİYET",  sub:"Ata altın"},
+  {key:"USD",  api:"USD",              name:"DOLAR",       sub:"USD / TRY"},
+  {key:"EUR",  api:"EUR",              name:"EURO",        sub:"EUR / TRY"},
+];
+
+/* ====== Ayarlar (localStorage) ====== */
+const DEF = {
+  name:"KUYUMCU ALTIN", buy:-1.0, sell:1.5, refresh:15,
+  enabled:{GRA:true,HAS:true,CEY:true,YARI:false,TAM:false,CUM:true,USD:true,EUR:false}
+};
+function loadCfg(){
+  try{return Object.assign({},DEF,JSON.parse(localStorage.getItem("kuyumcuCfg")||"{}"))}
+  catch(e){return {...DEF}}
+}
+let cfg = loadCfg();
+let prev = {}; // önceki fiyatlar (flash için)
+
+/* ====== Demo/yedek veri (API erişilemezse) ====== */
+const DEMO = {
+  "GRA":{Buying:6028.18,Selling:6029.02},
+  "HAS":{Buying:5998.04,Selling:5998.88},
+  "CEYREKALTIN":{Buying:9666.18,Selling:9889.52},
+  "YARIMALTIN":{Buying:19271.95,Selling:19779.04},
+  "TAMALTIN":{Buying:38664.73,Selling:39437.11},
+  "CUMHURIYETALTINI":{Buying:40098,Selling:40709},
+  "USD":{Buying:46.65,Selling:46.66},
+  "EUR":{Buying:53.19,Selling:53.20},
+};
+
+function fmt(n){
+  if(n==null||isNaN(n)) return "—";
+  return Number(n).toLocaleString("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function curOf(key){return (key==="USD"||key==="EUR")?"₺":"₺"}
+
+/* ====== Render ====== */
+function render(data, live){
+  const wrap = document.getElementById("rows");
+  wrap.innerHTML = "";
+  const active = ITEMS.filter(it=>cfg.enabled[it.key]);
+  active.forEach(it=>{
+    const raw = data[it.api] || {};
+    let buy  = parseFloat(raw.Buying ?? raw.Alis ?? raw.buy);
+    let sell = parseFloat(raw.Selling ?? raw.Satis ?? raw.sell);
+    // marj uygula
+    if(!isNaN(buy))  buy  = buy  * (1 + cfg.buy/100);
+    if(!isNaN(sell)) sell = sell * (1 + cfg.sell/100);
+
+    const row = document.createElement("div");
+    row.className = "row";
+    const pb = prev[it.key]?.buy, ps = prev[it.key]?.sell;
+    const fb = (pb!=null && buy>pb)?"flash-up":(pb!=null && buy<pb)?"flash-down":"";
+    const fs = (ps!=null && sell>ps)?"flash-up":(ps!=null && sell<ps)?"flash-down":"";
+    row.innerHTML = `
+      <div class="name"><b>${it.name}</b><small>${it.sub}</small></div>
+      <div class="price buy ${fb}">${fmt(buy)}<span class="cur">${curOf(it.key)}</span></div>
+      <div class="price sell ${fs}">${fmt(sell)}<span class="cur">${curOf(it.key)}</span></div>`;
+    wrap.appendChild(row);
+    prev[it.key] = {buy,sell};
+  });
+
+  document.getElementById("bName").innerHTML = cfg.name.replace(/(\S+)\s*(.*)/, '$1 <span>$2</span>');
+  document.getElementById("marginInfo").textContent =
+    `Marj — Alış: %${cfg.buy}  •  Satış: %${cfg.sell}`;
+  document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("tr-TR");
+  setStatus(live);
+}
+
+function setStatus(live){
+  const dot=document.getElementById("statusDot"), txt=document.getElementById("statusTxt");
+  if(live){dot.className="dot";txt.textContent="Canlı veri";}
+  else{dot.className="dot off";txt.textContent="Demo veri (bağlantı yok)";}
+}
+
+/* ====== Veri çek ====== */
+async function fetchData(){
+  const urls = [
+    "https://finans.truncgil.com/v4/today.json",
+    "https://finans.truncgil.com/today.json"
+  ];
+  for(const u of urls){
+    try{
+      const r = await fetch(u,{cache:"no-store"});
+      if(!r.ok) continue;
+      const j = await r.json();
+      render(j, true);
+      return;
+    }catch(e){/* sıradaki */}
+  }
+  render(DEMO, false); // hepsi başarısızsa demo veri
+}
+
+/* ====== Saat ====== */
+function tick(){
+  const d=new Date();
+  document.getElementById("clock").textContent = d.toLocaleTimeString("tr-TR");
+  document.getElementById("date").textContent =
+    d.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
+}
+
+/* ====== Admin ====== */
+function openAdmin(){
+  document.getElementById("cfgName").value = cfg.name;
+  document.getElementById("cfgBuy").value = cfg.buy;
+  document.getElementById("cfgSell").value = cfg.sell;
+  document.getElementById("cfgRefresh").value = cfg.refresh;
+  const box=document.getElementById("itemToggles"); box.innerHTML="";
+  ITEMS.forEach(it=>{
+    const id="tg_"+it.key;
+    const div=document.createElement("div");
+    div.className="toggle";
+    div.innerHTML=`<input type="checkbox" id="${id}" ${cfg.enabled[it.key]?"checked":""}/>
+                   <label for="${id}" style="margin:0">${it.name}</label>`;
+    box.appendChild(div);
+  });
+  document.getElementById("saveOk").textContent="";
+  document.getElementById("overlay").classList.add("open");
+}
+function closeAdmin(){document.getElementById("overlay").classList.remove("open");}
+let refreshTimer=null;
+function saveCfg(){
+  cfg.name = document.getElementById("cfgName").value.trim() || DEF.name;
+  cfg.buy  = parseFloat(document.getElementById("cfgBuy").value)||0;
+  cfg.sell = parseFloat(document.getElementById("cfgSell").value)||0;
+  cfg.refresh = Math.max(5, parseInt(document.getElementById("cfgRefresh").value)||15);
+  ITEMS.forEach(it=>{cfg.enabled[it.key]=document.getElementById("tg_"+it.key).checked;});
+  localStorage.setItem("kuyumcuCfg", JSON.stringify(cfg));
+  document.getElementById("saveOk").textContent="✓ Kaydedildi";
+  startLoop();
+  fetchData();
+  setTimeout(closeAdmin, 700);
+}
+
+/* ====== Başlat ====== */
+function startLoop(){
+  if(refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(fetchData, cfg.refresh*1000);
+}
+tick(); setInterval(tick,1000);
+fetchData(); startLoop();
+// ESC ile admin kapat
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAdmin();});
+</script>
+</body>
+</html>
