@@ -80,8 +80,9 @@
   /* ---- ADMIN ---- */
   .gear{position:fixed;top:14px;right:16px;z-index:50;background:rgba(20,28,40,.85);
     border:1px solid var(--line);color:var(--muted);width:42px;height:42px;border-radius:10px;
-    cursor:pointer;font-size:20px}
-  .gear:hover{color:var(--gold)}
+    cursor:pointer;font-size:20px;text-decoration:none;
+    display:flex;align-items:center;justify-content:center}
+  .gear:hover{color:var(--gold);border-color:var(--gold)}
   .overlay{position:fixed;inset:0;background:rgba(3,6,12,.72);backdrop-filter:blur(4px);
     display:none;align-items:center;justify-content:center;z-index:100}
   .overlay.open{display:flex}
@@ -110,12 +111,12 @@
 </head>
 <body>
 
-<button class="gear" onclick="openAdmin()" title="Yönetim Paneli">⚙</button>
+<a class="gear" href="admin.html" title="Yönetim Paneli">⚙</a>
 
 <div class="board">
   <div class="top">
     <div class="brand">
-      <div class="logo">K</div>
+      <div class="logo" id="bLogo">K</div>
       <div>
         <h1 id="bName">KUYUMCU <span>ALTIN</span></h1>
         <p>Canlı Altın & Döviz Panosu</p>
@@ -142,48 +143,6 @@
   </div>
 </div>
 
-<!-- ADMIN -->
-<div class="overlay" id="overlay">
-  <div class="admin">
-    <h2>Yönetim <span>Paneli</span></h2>
-    <div class="sub">Piyasa fiyatına uygulanacak kâr marjını (%) ve gösterim ayarlarını buradan düzenleyin.</div>
-
-    <div class="field">
-      <label>Mağaza Adı</label>
-      <input type="text" id="cfgName" placeholder="KUYUMCU ALTIN" />
-    </div>
-
-    <div class="grid2">
-      <div class="field">
-        <label>Alış marjı (%)</label>
-        <input type="number" id="cfgBuy" step="0.1" />
-        <div class="hint">Piyasa alış fiyatından düşülür (müşteriden alış)</div>
-      </div>
-      <div class="field">
-        <label>Satış marjı (%)</label>
-        <input type="number" id="cfgSell" step="0.1" />
-        <div class="hint">Piyasa satış fiyatına eklenir (müşteriye satış)</div>
-      </div>
-    </div>
-
-    <div class="divider"></div>
-
-    <div class="field">
-      <label>Yenileme sıklığı (saniye)</label>
-      <input type="number" id="cfgRefresh" min="5" step="1" />
-    </div>
-
-    <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:8px">Gösterilecek kalemler</label>
-    <div id="itemToggles"></div>
-
-    <div class="actions">
-      <button class="btn ghost" onclick="closeAdmin()">İptal</button>
-      <button class="btn primary" onclick="saveCfg()">Kaydet</button>
-    </div>
-    <div class="save-ok" id="saveOk"></div>
-  </div>
-</div>
-
 <script>
 /* ====== Gösterilecek kalemler (truncgil v4 anahtarları) ====== */
 const ITEMS = [
@@ -200,7 +159,8 @@ const ITEMS = [
 /* ====== Ayarlar (localStorage) ====== */
 const DEF = {
   name:"KUYUMCU ALTIN", buy:-1.0, sell:1.5, refresh:15,
-  enabled:{GRA:true,HAS:true,CEY:true,YARI:false,TAM:false,CUM:true,USD:true,EUR:false}
+  enabled:{GRA:true,HAS:true,CEY:true,YARI:false,TAM:false,CUM:true,USD:true,EUR:false},
+  override:{} // {GRA:{buy:0.5,sell:2}} -> o kaleme özel marj
 };
 function loadCfg(){
   try{return Object.assign({},DEF,JSON.parse(localStorage.getItem("kuyumcuCfg")||"{}"))}
@@ -227,8 +187,18 @@ function fmt(n){
 }
 function curOf(key){return (key==="USD"||key==="EUR")?"₺":"₺"}
 
+/* her kalem için geçerli marj (özel override varsa onu, yoksa genel marj) */
+function marginFor(key){
+  const o = (cfg.override||{})[key];
+  return {
+    buy:  (o && o.buy  !== "" && o.buy  != null) ? Number(o.buy)  : cfg.buy,
+    sell: (o && o.sell !== "" && o.sell != null) ? Number(o.sell) : cfg.sell
+  };
+}
+
 /* ====== Render ====== */
 function render(data, live){
+  cfg = loadCfg(); // admin'de yapılan son değişiklikleri al
   const wrap = document.getElementById("rows");
   wrap.innerHTML = "";
   const active = ITEMS.filter(it=>cfg.enabled[it.key]);
@@ -236,9 +206,10 @@ function render(data, live){
     const raw = data[it.api] || {};
     let buy  = parseFloat(raw.Buying ?? raw.Alis ?? raw.buy);
     let sell = parseFloat(raw.Selling ?? raw.Satis ?? raw.sell);
-    // marj uygula
-    if(!isNaN(buy))  buy  = buy  * (1 + cfg.buy/100);
-    if(!isNaN(sell)) sell = sell * (1 + cfg.sell/100);
+    // marj uygula (kaleme özel ya da genel)
+    const m = marginFor(it.key);
+    if(!isNaN(buy))  buy  = buy  * (1 + m.buy/100);
+    if(!isNaN(sell)) sell = sell * (1 + m.sell/100);
 
     const row = document.createElement("div");
     row.className = "row";
@@ -254,6 +225,7 @@ function render(data, live){
   });
 
   document.getElementById("bName").innerHTML = cfg.name.replace(/(\S+)\s*(.*)/, '$1 <span>$2</span>');
+  document.getElementById("bLogo").textContent = cfg.logo || "K";
   document.getElementById("marginInfo").textContent =
     `Marj — Alış: %${cfg.buy}  •  Satış: %${cfg.sell}`;
   document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("tr-TR");
@@ -292,48 +264,21 @@ function tick(){
     d.toLocaleDateString("tr-TR",{weekday:"long",day:"numeric",month:"long",year:"numeric"});
 }
 
-/* ====== Admin ====== */
-function openAdmin(){
-  document.getElementById("cfgName").value = cfg.name;
-  document.getElementById("cfgBuy").value = cfg.buy;
-  document.getElementById("cfgSell").value = cfg.sell;
-  document.getElementById("cfgRefresh").value = cfg.refresh;
-  const box=document.getElementById("itemToggles"); box.innerHTML="";
-  ITEMS.forEach(it=>{
-    const id="tg_"+it.key;
-    const div=document.createElement("div");
-    div.className="toggle";
-    div.innerHTML=`<input type="checkbox" id="${id}" ${cfg.enabled[it.key]?"checked":""}/>
-                   <label for="${id}" style="margin:0">${it.name}</label>`;
-    box.appendChild(div);
-  });
-  document.getElementById("saveOk").textContent="";
-  document.getElementById("overlay").classList.add("open");
-}
-function closeAdmin(){document.getElementById("overlay").classList.remove("open");}
-let refreshTimer=null;
-function saveCfg(){
-  cfg.name = document.getElementById("cfgName").value.trim() || DEF.name;
-  cfg.buy  = parseFloat(document.getElementById("cfgBuy").value)||0;
-  cfg.sell = parseFloat(document.getElementById("cfgSell").value)||0;
-  cfg.refresh = Math.max(5, parseInt(document.getElementById("cfgRefresh").value)||15);
-  ITEMS.forEach(it=>{cfg.enabled[it.key]=document.getElementById("tg_"+it.key).checked;});
-  localStorage.setItem("kuyumcuCfg", JSON.stringify(cfg));
-  document.getElementById("saveOk").textContent="✓ Kaydedildi";
-  startLoop();
-  fetchData();
-  setTimeout(closeAdmin, 700);
-}
-
 /* ====== Başlat ====== */
+let refreshTimer=null;
 function startLoop(){
   if(refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(fetchData, cfg.refresh*1000);
+  refreshTimer = setInterval(fetchData, (cfg.refresh||15)*1000);
 }
 tick(); setInterval(tick,1000);
 fetchData(); startLoop();
-// ESC ile admin kapat
-document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAdmin();});
+
+// admin sayfasında ayar değişince ekranı anında güncelle
+window.addEventListener("storage", e=>{
+  if(e.key==="kuyumcuCfg"){ cfg=loadCfg(); fetchData(); startLoop(); }
+});
+// sekmeye geri dönünce de tazele
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden){cfg=loadCfg(); fetchData();} });
 </script>
 </body>
 </html>
